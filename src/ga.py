@@ -46,12 +46,12 @@ class Individual_Grid(object):
         # Default fitness function: Just some arbitrary combination of a few criteria.  Is it good?  Who knows?
         # STUDENT Modify this, and possibly add more metrics.  You can replace this with whatever code you like.
         coefficients = dict(
-            meaningfulJumpVariance=0.5,
-            negativeSpace=2.0,#originally 0.6
-            pathPercentage=0.2,#originally 0.5
-            emptyPercentage=2.0,#originally 0.9
-            linearity=-0.4,#originally -0.5
-            solvability=4.0#originally 2.0
+            meaningfulJumpVariance=2,
+            negativeSpace=1.0,
+            pathPercentage=2,
+            emptyPercentage=3.0,
+            linearity=-0.2,
+            solvability=5.0
         )
         self._fitness = sum(map(lambda m: coefficients[m] * measurements[m],
                                 coefficients))
@@ -130,14 +130,17 @@ class Individual_Grid(object):
         left = 1
         right = width - 1
         
-        for row in range(height):
-            for col in range(left,right):
+        for col in range(height):
+            for row in range(left,right):
                 if random.uniform(0,1) >0.3:
-                    g[row][col] = '-'
-        for col in range(8, 14):
-            g[col][-2] = "f"
-        for col in range(14, 16):
-            g[col][-2] = "X"
+                    g[col][row] = '-'
+        for row in range(8, 16):
+            g[row][-2] = "f"
+        for row in range(14, 16):
+            g[row][-2] = "X"
+        for row in range(0,16):
+            g[row][-1] = "-"
+            g[row][0] = "-"
         for row in range(13,16):
             for col in range(0, 8):
                 g[col][row] = "-"
@@ -181,12 +184,12 @@ class Individual_DE(object):
         # STUDENT Add more metrics?
         # STUDENT Improve this with any code you like
         coefficients = dict(
-            meaningfulJumpVariance=0.5,
+            meaningfulJumpVariance=3,
             negativeSpace=0.6,
-            pathPercentage=0.5,
+            pathPercentage=0.7,
             emptyPercentage=0.6,
-            linearity=-0.5,
-            solvability=10.0
+            linearity=-0.3,
+            solvability=5.0
         )
         penalties = 0
         # STUDENT For example, too many stairs are unaesthetic.  Let's penalize that
@@ -397,10 +400,14 @@ def set_constraints(genome,x,y):
     #check if anything else above  "?""
     if genome[y][x] == "?" and genome[y-1][x] != "-":
         genome[y-1][x] = "-"
-    #blocks need to be higher
+    if genome[y][x] == "B" and genome[y-1][x] != "-":
+        genome[y-1][x] = "-"
+    if genome[y][x] == "M" and genome[y-1][x] != "-":
+        genome[y-1][x] = "-"#blocks need to be higher
     if genome[y][x] == "X" or genome[y][x] == "?" or genome[y][x] == "M" or genome[y][x] == "B":
         for i in range(2,4):
-           genome[-i][x] = "-"
+            if x != 198:
+                genome[-i][x] = "-"
 
 
     
@@ -432,12 +439,18 @@ def generate_successors(population):
                         results.extend([children[0], children[1]])
                         break
                 break
+    # random selection
+    while len(results) < len(population):
+        parent = random.choice(population)
+        another_parent = random.choice(population)
+        children = parent.generate_children(another_parent)
+        results.extend([children[0], children[1]])
     return results
 
 
 def ga():
     # STUDENT Feel free to play with this parameter
-    pop_limit = 480
+    pop_limit = 120
     # Code to parallelize some computations
     batches = os.cpu_count()
     if pop_limit % batches != 0:
