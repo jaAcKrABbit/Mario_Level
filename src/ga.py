@@ -76,8 +76,8 @@ class Individual_Grid(object):
                 #10 percent chance to mutate individual
                 if random.random() < 0.1 and len(genome) > 0:
                     #20% weight to mutate individual into a block
-                    if random.random() < 0.2:
-                        genome[y][x] = random.choice("X?MB")
+                    if random.random() < 0.3:
+                        genome[y][x] = random.choice(["X","?","M","B"])
                     #80% weight to mutate individual into a coin
                     else:
                         genome[y][x] = "o"
