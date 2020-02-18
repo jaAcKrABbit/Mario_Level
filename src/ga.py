@@ -21,8 +21,8 @@ options = [
     "|",  # a pipe segment
     "T",  # a pipe top
     "E",  # an enemy
-    #"f",  # a flag, do not generate
-    #"v",  # a flagpole, do not generate
+    #"v",  # a flag, do not generate
+    #"f",  # a flagpole, do not generate
     #"m"  # mario's start position, do not generate
 ]
 
@@ -33,6 +33,7 @@ class Individual_Grid(object):
     __slots__ = ["genome", "_fitness"]
 
     def __init__(self, genome):
+        #genome is 2D array: [y][x]
         self.genome = copy.deepcopy(genome)
         self._fitness = None
 
@@ -41,16 +42,16 @@ class Individual_Grid(object):
     def calculate_fitness(self):
         measurements = metrics.metrics(self.to_level())
         # Print out the possible measurements or look at the implementation of metrics.py for other keys:
-        # print(measurements.keys())
+        #print(measurements.keys())
         # Default fitness function: Just some arbitrary combination of a few criteria.  Is it good?  Who knows?
         # STUDENT Modify this, and possibly add more metrics.  You can replace this with whatever code you like.
         coefficients = dict(
             meaningfulJumpVariance=0.5,
-            negativeSpace=0.6,
-            pathPercentage=0.5,
-            emptyPercentage=0.6,
-            linearity=-0.5,
-            solvability=2.0
+            negativeSpace=2.0,#originally 0.6
+            pathPercentage=0.2,#originally 0.5
+            emptyPercentage=2.0,#originally 0.9
+            linearity=-0.4,#originally -0.5
+            solvability=4.0#originally 2.0
         )
         self._fitness = sum(map(lambda m: coefficients[m] * measurements[m],
                                 coefficients))
@@ -92,9 +93,16 @@ class Individual_Grid(object):
                     new_genome[y][x] = other.genome[y][x]
                 else:
                     another_genome[y][x] = self.genome[y][x]
-                pass
+                new_genome = set_constraints(new_genome,x,y)
+                another_genome = set_constraints(another_genome,x,y)
         # do mutation; note we're returning a one-element tuple here
-        return (Individual_Grid(new_genome),Individual_Grid(another_genome))
+        return (Individual_Grid(new_genome), Individual_Grid(another_genome))
+    
+   
+
+
+
+
 
     # Turn the genome into a level string (easy for this genome)
     def to_level(self):
@@ -107,11 +115,11 @@ class Individual_Grid(object):
         g = [["-" for col in range(width)] for row in range(height)]
         g[15][:] = ["X"] * width
         g[14][0] = "m"
-        g[7][-1] = "v"
+        g[7][-2] = "v"
         for col in range(8, 14):
-            g[col][-1] = "f"
+            g[col][-2] = "f"
         for col in range(14, 16):
-            g[col][-1] = "X"
+            g[col][-2] = "X"
         return cls(g)
 
     @classmethod
@@ -119,13 +127,25 @@ class Individual_Grid(object):
         # STUDENT consider putting more constraints on this to prevent pipes in the air, etc
         # STUDENT also consider weighting the different tile types so it's not uniformly random
         g = [random.choices(options, k=width) for row in range(height)]
+        left = 1
+        right = width - 1
+        
+        for row in range(height):
+            for col in range(left,right):
+                if random.uniform(0,1) >0.3:
+                    g[row][col] = '-'
+        for col in range(8, 14):
+            g[col][-2] = "f"
+        for col in range(14, 16):
+            g[col][-2] = "X"
+        for row in range(13,16):
+            for col in range(0, 8):
+                g[col][row] = "-"
+
         g[15][:] = ["X"] * width
         g[14][0] = "m"
-        g[7][-1] = "v"
-        g[8:14][-1] = ["f"] * 6
-        g[14:16][-1] = ["X", "X"]
+        g[7][-2] = "v"
         return cls(g)
-
 
 def offset_by_upto(val, variance, min=None, max=None):
     val += random.normalvariate(0, variance**0.5)
@@ -142,9 +162,6 @@ def clip(lo, val, hi):
     if val > hi:
         return hi
     return val
-
-# Inspired by https://www.researchgate.net/profile/Philippe_Pasquier/publication/220867545_Towards_a_Generic_Framework_for_Automated_Video_Game_Level_Creation/links/0912f510ac2bed57d1000000.pdf
-
 
 class Individual_DE(object):
     # Calculating the level isn't cheap either so we cache it too.
@@ -169,12 +186,22 @@ class Individual_DE(object):
             pathPercentage=0.5,
             emptyPercentage=0.6,
             linearity=-0.5,
-            solvability=2.0
+            solvability=10.0
         )
         penalties = 0
         # STUDENT For example, too many stairs are unaesthetic.  Let's penalize that
         if len(list(filter(lambda de: de[1] == "6_stairs", self.genome))) > 5:
             penalties -= 2
+        if len(list(filter(lambda de: de[1] == "3_coins", self.genome))) > 5:
+            penalties += 2
+        if len(list(filter(lambda de: de[1] == "0_hole", self.genome))) > 2:
+            penalties += 1
+        if len(list(filter(lambda de: de[1] == "7_pipe", self.genome))) > 4:
+            penalties -= 3
+        if len(list(filter(lambda de: de[1] == "1_platform", self.genome))) > 2:
+            penalties += 2
+        if len(list(filter(lambda de: de[1] == "5_qblock", self.genome))) > 3:
+            penalties += 3
         # STUDENT If you go for the FI-2POP extra credit, you can put constraint calculation in here too and cache it in a new entry in __slots__.
         self._fitness = sum(map(lambda m: coefficients[m] * measurements[m],
                                 coefficients)) + penalties
@@ -326,7 +353,7 @@ class Individual_DE(object):
     @classmethod
     def empty_individual(_cls):
         # STUDENT Maybe enhance this
-        g = []
+        g = [(random.randint(1, width - 2), "1_platform", random.randint(1, 8), height - 1, "X")]
         return Individual_DE(g)
 
     @classmethod
@@ -345,8 +372,44 @@ class Individual_DE(object):
         ]) for i in range(elt_count)]
         return Individual_DE(g)
 
+def set_constraints(genome,x,y):
+    #check floor
+    if (genome[-1][x]!= "X" or genome[-1][x] != "-" ):
+        if random.uniform(0,1) > 0.3:
+            genome[-1][x] = "X"
+        else:
+            genome[-1][x] = "-"
+    #check pipe upside down
+    if genome[y][x]=="T" and genome[y-1][x] == "|":
+        genome[y][x] = "|"
+    #check pipe in the air
+    if genome[y][x] != "X" and (genome[y-1][x] == "|" or genome[y-1][x] == "T"):
+        genome[y-1][x] = "-"
+    # prevent pipes too high
+    if (genome[y][x] == "|" or genome[y][x] == "T") and y < 12:
+        genome[y][x] == "-"
+    # pipe with only lid
+    if genome[y][x] == "T" and genome[y+1][x] != "|":
+        genome[y][x] = "-"
+    #check if pipe has a lid
+    if genome[y][x] == "|" and genome[y-1][x] == "-":
+        genome[y-1][x] = "T" 
+    #check if anything else above  "?""
+    if genome[y][x] == "?" and genome[y-1][x] != "-":
+        genome[y-1][x] = "-"
+    #blocks need to be higher
+    if genome[y][x] == "X" or genome[y][x] == "?" or genome[y][x] == "M" or genome[y][x] == "B":
+        for i in range(2,4):
+           genome[-i][x] = "-"
 
-Individual = Individual_DE
+
+    
+
+
+    return genome
+
+
+Individual = Individual_Grid
 
 
 def generate_successors(population):
@@ -357,40 +420,19 @@ def generate_successors(population):
     #https: // github.com/kburnik/genetic-algorithm/blob/master/ga.py
     # roulette wheel
     while len(results) < len(population):
-        pick = random.uniform(0,total)
+        pick = random.uniform(0, total)
         for p in population:
             pick -= p._fitness
             if pick <= 0:
-                another_pick = random.uniform(0,total)
+                another_pick = random.uniform(0, total)
                 for pop in population:
                     another_pick -= pop._fitness
                     if another_pick <= 0:
                         children = p.generate_children(pop)
-                        results.extend([children[0],children[1]])
+                        results.extend([children[0], children[1]])
                         break
                 break
     return results
-
-
-    # for Individual in population:
-    #     totalFitness += Individual._fitness
-    # while len(results) < len(population):
-    #     selection = random.random() * totalFitness
-    #     for Parent in population:
-    #         selection -= Parent._fitness
-    #         if selection < 0:
-    #             secondChoice = random.random() * totalFitness
-    #             for Mate in population:
-    #                 secondChoice -= Mate._fitness
-    #                 if secondChoice < 0:
-    #                     children = Parent.generate_children(Mate)
-    #                     results.append(children[0])
-    #                     results.append(children[1])
-    #                     break
-    #             break
-    # return results
-
-   
 
 
 def ga():
@@ -404,7 +446,7 @@ def ga():
     with mpool.Pool(processes=os.cpu_count()) as pool:
         init_time = time.time()
         # STUDENT (Optional) change population initialization
-        population = [Individual.random_individual() if random.random() < 0.9
+        population = [Individual.random_individual() if random.random() < 0.5 #ORIGINALLY 0.9
                       else Individual.empty_individual()
                       for _g in range(pop_limit)]
         # But leave this line alone; we have to reassign to population because we get a new population that has more cached stuff in it.
@@ -450,7 +492,6 @@ def ga():
         except KeyboardInterrupt:
             pass
     return population
-
 
 if __name__ == "__main__":
     final_gen = sorted(ga(), key=Individual.fitness, reverse=True)
