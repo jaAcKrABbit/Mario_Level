@@ -73,7 +73,15 @@ class Individual_Grid(object):
         right = width - 1
         for y in range(height):
             for x in range(left, right):
-                pass
+                #10 percent chance to mutate individual
+                if random.random() < 0.1 and len(genome) > 0:
+                    #30% weight to mutate individual into a block
+                    if random.random() < 0.3:
+                        genome[y][x] = random.choice(["X","?","M","B"])
+                    #70% weight to mutate individual into a coin
+                    else:
+                        genome[y][x] = "o"
+
         return genome
 
     # Create zero or more children from self and other
