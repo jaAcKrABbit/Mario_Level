@@ -77,11 +77,12 @@ class Individual_Grid(object):
                 if random.random() < 0.1 and len(genome) > 0:
                     #30% weight to mutate individual into a block
                     if random.random() < 0.3:
-                        genome[y][x] = random.choice(["X","?","M","B"])
+                        genome[y][x] = random.choice(["X", "?", "M", "B"])
                     #70% weight to mutate individual into a coin
-                    else:
+                    elif genome[y][x] != "v":
                         genome[y][x] = "o"
-
+                    genome = set_constraints(genome,x,y)
+    
         return genome
 
     # Create zero or more children from self and other
@@ -101,18 +102,13 @@ class Individual_Grid(object):
                     new_genome[y][x] = other.genome[y][x]
                 else:
                     another_genome[y][x] = self.genome[y][x]
-                new_genome = set_constraints(new_genome,x,y)
-                another_genome = set_constraints(another_genome,x,y)
+                new_genome = set_constraints(new_genome, x, y)
+                another_genome = set_constraints(another_genome, x, y)
         # do mutation; note we're returning a one-element tuple here
-        return (Individual_Grid(new_genome), Individual_Grid(another_genome))
-    
-   
-
-
-
-
+        return (Individual_Grid(self.mutate(new_genome)), Individual_Grid(self.mutate(another_genome)))
 
     # Turn the genome into a level string (easy for this genome)
+
     def to_level(self):
         return self.genome
 
@@ -137,19 +133,19 @@ class Individual_Grid(object):
         g = [random.choices(options, k=width) for row in range(height)]
         left = 1
         right = width - 1
-        
+
         for col in range(height):
-            for row in range(left,right):
-                if random.uniform(0,1) >0.3:
+            for row in range(left, right):
+                if random.uniform(0, 1) > 0.3:
                     g[col][row] = '-'
         for row in range(8, 16):
             g[row][-2] = "f"
         for row in range(14, 16):
             g[row][-2] = "X"
-        for row in range(0,16):
+        for row in range(0, 16):
             g[row][-1] = "-"
             g[row][0] = "-"
-        for row in range(13,16):
+        for row in range(13, 16):
             for col in range(0, 8):
                 g[col][row] = "-"
 
@@ -157,6 +153,7 @@ class Individual_Grid(object):
         g[14][0] = "m"
         g[7][-2] = "v"
         return cls(g)
+
 
 def offset_by_upto(val, variance, min=None, max=None):
     val += random.normalvariate(0, variance**0.5)
@@ -173,6 +170,7 @@ def clip(lo, val, hi):
     if val > hi:
         return hi
     return val
+
 
 class Individual_DE(object):
     # Calculating the level isn't cheap either so we cache it too.
@@ -349,13 +347,15 @@ class Individual_DE(object):
                     dx = de[3]  # -1 or 1
                     for x2 in range(1, h + 1):
                         for y in range(x2 if dx == 1 else h - x2):
-                            base[clip(0, height - y - 1, height - 1)][clip(1, x + x2, width - 2)] = "X"
+                            base[clip(0, height - y - 1, height - 1)
+                                 ][clip(1, x + x2, width - 2)] = "X"
                 elif de_type == "1_platform":
                     w = de[2]
                     h = de[3]
                     madeof = de[4]  # from "?", "X", "B"
                     for x2 in range(w):
-                        base[clip(0, height - h - 1, height - 1)][clip(1, x + x2, width - 2)] = madeof
+                        base[clip(0, height - h - 1, height - 1)
+                             ][clip(1, x + x2, width - 2)] = madeof
                 elif de_type == "2_enemy":
                     base[height - 2][x] = "E"
             self._level = base
@@ -364,7 +364,8 @@ class Individual_DE(object):
     @classmethod
     def empty_individual(_cls):
         # STUDENT Maybe enhance this
-        g = [(random.randint(1, width - 2), "1_platform", random.randint(1, 8), height - 1, "X")]
+        g = [(random.randint(1, width - 2), "1_platform",
+              random.randint(1, 8), height - 1, "X")]
         return Individual_DE(g)
 
     @classmethod
@@ -373,25 +374,30 @@ class Individual_DE(object):
         elt_count = random.randint(8, 128)
         g = [random.choice([
             (random.randint(1, width - 2), "0_hole", random.randint(1, 8)),
-            (random.randint(1, width - 2), "1_platform", random.randint(1, 8), random.randint(0, height - 1), random.choice(["?", "X", "B"])),
+            (random.randint(1, width - 2), "1_platform", random.randint(1, 8),
+             random.randint(0, height - 1), random.choice(["?", "X", "B"])),
             (random.randint(1, width - 2), "2_enemy"),
             (random.randint(1, width - 2), "3_coin", random.randint(0, height - 1)),
-            (random.randint(1, width - 2), "4_block", random.randint(0, height - 1), random.choice([True, False])),
-            (random.randint(1, width - 2), "5_qblock", random.randint(0, height - 1), random.choice([True, False])),
-            (random.randint(1, width - 2), "6_stairs", random.randint(1, height - 4), random.choice([-1, 1])),
+            (random.randint(1, width - 2), "4_block",
+             random.randint(0, height - 1), random.choice([True, False])),
+            (random.randint(1, width - 2), "5_qblock",
+             random.randint(0, height - 1), random.choice([True, False])),
+            (random.randint(1, width - 2), "6_stairs",
+             random.randint(1, height - 4), random.choice([-1, 1])),
             (random.randint(1, width - 2), "7_pipe", random.randint(2, height - 4))
         ]) for i in range(elt_count)]
         return Individual_DE(g)
 
-def set_constraints(genome,x,y):
+
+def set_constraints(genome, x, y):
     #check floor
-    if (genome[-1][x]!= "X" or genome[-1][x] != "-" ):
-        if random.uniform(0,1) > 0.3:
+    if (genome[-1][x] != "X" or genome[-1][x] != "-"):
+        if random.uniform(0, 1) > 0.3:
             genome[-1][x] = "X"
         else:
             genome[-1][x] = "-"
     #check pipe upside down
-    if genome[y][x]=="T" and genome[y-1][x] == "|":
+    if genome[y][x] == "T" and genome[y-1][x] == "|":
         genome[y][x] = "|"
     #check pipe in the air
     if genome[y][x] != "X" and (genome[y-1][x] == "|" or genome[y-1][x] == "T"):
@@ -404,22 +410,18 @@ def set_constraints(genome,x,y):
         genome[y][x] = "-"
     #check if pipe has a lid
     if genome[y][x] == "|" and genome[y-1][x] == "-":
-        genome[y-1][x] = "T" 
+        genome[y-1][x] = "T"
     #check if anything else above  "?""
     if genome[y][x] == "?" and genome[y-1][x] != "-":
         genome[y-1][x] = "-"
     if genome[y][x] == "B" and genome[y-1][x] != "-":
         genome[y-1][x] = "-"
     if genome[y][x] == "M" and genome[y-1][x] != "-":
-        genome[y-1][x] = "-"#blocks need to be higher
+        genome[y-1][x] = "-"  # blocks need to be higher
     if genome[y][x] == "X" or genome[y][x] == "?" or genome[y][x] == "M" or genome[y][x] == "B":
-        for i in range(2,4):
+        for i in range(2, 4):
             if x != 198:
                 genome[-i][x] = "-"
-
-
-    
-
 
     return genome
 
@@ -431,9 +433,17 @@ def generate_successors(population):
     results = []
     # STUDENT Design and implement this
     # Hint: Call generate_children() on some individuals and fill up results.
-    total = sum(g._fitness for g in population)
+   
+    # random selection
+    while len(results) < 40:
+        parent = random.choice(population)
+        another_parent = random.choice(population)
+        children = parent.generate_children(another_parent)
+        results.extend([children[0], children[1]])
+
     #https: // github.com/kburnik/genetic-algorithm/blob/master/ga.py
     # roulette wheel
+    total = sum(g._fitness for g in population)
     while len(results) < len(population):
         pick = random.uniform(0, total)
         for p in population:
@@ -447,13 +457,8 @@ def generate_successors(population):
                         results.extend([children[0], children[1]])
                         break
                 break
-    # random selection
-    while len(results) < len(population):
-        parent = random.choice(population)
-        another_parent = random.choice(population)
-        children = parent.generate_children(another_parent)
-        results.extend([children[0], children[1]])
     return results
+
 
 
 def ga():
@@ -462,12 +467,13 @@ def ga():
     # Code to parallelize some computations
     batches = os.cpu_count()
     if pop_limit % batches != 0:
-        print("It's ideal if pop_limit divides evenly into " + str(batches) + " batches.")
+        print("It's ideal if pop_limit divides evenly into " +
+              str(batches) + " batches.")
     batch_size = int(math.ceil(pop_limit / batches))
     with mpool.Pool(processes=os.cpu_count()) as pool:
         init_time = time.time()
         # STUDENT (Optional) change population initialization
-        population = [Individual.random_individual() if random.random() < 0.5 #ORIGINALLY 0.9
+        population = [Individual.random_individual() if random.random() < 0.6
                       else Individual.empty_individual()
                       for _g in range(pop_limit)]
         # But leave this line alone; we have to reassign to population because we get a new population that has more cached stuff in it.
@@ -475,7 +481,8 @@ def ga():
                               population,
                               batch_size)
         init_done = time.time()
-        print("Created and calculated initial population statistics in:", init_done - init_time, "seconds")
+        print("Created and calculated initial population statistics in:",
+              init_done - init_time, "seconds")
         generation = 0
         start = time.time()
         now = start
@@ -488,7 +495,8 @@ def ga():
                     best = max(population, key=Individual.fitness)
                     print("Generation:", str(generation))
                     print("Max fitness:", str(best.fitness()))
-                    print("Average generation time:", (now - start) / generation)
+                    print("Average generation time:",
+                          (now - start) / generation)
                     print("Net time:", now - start)
                     with open("levels/last.txt", 'w') as f:
                         for row in best.to_level():
@@ -513,6 +521,7 @@ def ga():
         except KeyboardInterrupt:
             pass
     return population
+
 
 if __name__ == "__main__":
     final_gen = sorted(ga(), key=Individual.fitness, reverse=True)
