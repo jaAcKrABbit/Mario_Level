@@ -1,0 +1,14 @@
+For the selection, we implemented roulette wheel selection and random selection. For roulette wheel, it keeps looking for the parent until the spin threshold is met. Same process for another parent. For random selection, it randomly picks parents with higher fitness.
+
+For Grid crossover, it's single-point crossover. Half of the gene are from the left parent and the other half from the right parent. It will then generate two chilren. I created a helper function to set constraints to the blocks dealing with pipes, wierd looking block combinations, give player space to jump,etc.
+
+For De crossover, it uses single-point crossover as well by random proportion instead of fifty fifty.
+
+We changed both fitness function to make them focus more on solvability and less on linearity. Solvability is our priority beacuse it's meaningless to create a level that is unbeatable.
+
+In ga(),we changed the chance to call random_individual to 60% to make the level less random.
+
+
+
+
+Our favorite level took 6 generations, 26.74 seconds to generate. The reason why it's interesting is that it has multiple tiers player can reach, which means a lot of paths to choose. Also, there are a lot of coins to collect in the level.
