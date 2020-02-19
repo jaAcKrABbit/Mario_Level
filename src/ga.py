@@ -81,6 +81,9 @@ class Individual_Grid(object):
                     #70% weight to mutate individual into a coin
                     else:
                         genome[y][x] = "o"
+                    #Possible solution to floor issue
+                    #if y == 0:
+                            #genome[y][x] = random(["X", "-"])       
 
         return genome
 
