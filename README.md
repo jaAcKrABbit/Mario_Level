@@ -1,2 +1,2 @@
 # Mario_Level
- P6
+A Mario_level generator using genetic algorithm
